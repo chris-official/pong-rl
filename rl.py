@@ -1,96 +1,46 @@
+from stable_baselines3.common.env_util import make_atari_env
+from stable_baselines3.common.vec_env import VecFrameStack
+from stable_baselines3 import PPO
 import gymnasium as gym
-from ray.rllib.algorithms.ppo import PPOConfig
-from ray.tune.logger import TBXLoggerCallback
-from ray.rllib.algorithms.algorithm import Algorithm
+from time import sleep
 
 
-def get_algo_weights(algo):
-    # Get weights of the default local policy
-    return algo.get_policy().get_weights()
+def print_envs():
+    print(gym.envs.registration.registry.keys())
 
 
-def load_algo(algo, path: str):
-    # Load the trained model
-    return algo.restore(path)
+def initialize():
+    vec_env = make_atari_env("ALE/Pong-v5", n_envs=6, seed=0)
+    vec_env = VecFrameStack(vec_env, n_stack=4)
+    model = PPO("CnnPolicy", vec_env, verbose=0)
+    return model
 
 
-def load_algo_new(path):
-    # Load the trained model
-    return Algorithm.from_checkpoint(path)
+def train(model, steps: int = 1000):
+    model.learn(total_timesteps=steps)
+    return model
 
 
-def init():
-    # Configure the PPO algorithm
-    config = (
-        PPOConfig()
-        .environment("ALE/Pong-v5")
-        .framework("torch")
-        .env_runners(num_env_runners=4)
-        .training(
-            train_batch_size=750,
-            sgd_minibatch_size=128,
-            gamma=0.99,
-            lambda_=0.95,
-            kl_coeff=0.5,
-            clip_param=0.3,
-            vf_clip_param=10.0,
-            entropy_coeff=0.01,
-            num_sgd_iter=2,
-            lr=0.00015,
-            grad_clip=100.0,
-            grad_clip_by="global_norm",
-            vf_loss_coeff=1.0,
-        )
-        .model(
-            {
-                "vf_share_layers": True,
-                "conv_filters": [[16, 4, 2], [32, 4, 2], [64, 4, 2], [128, 4, 2]],
-                "conv_activation": "relu",  # Mish
-                "post_fcnet_hiddens": [256],
-                "post_fcnet_activation": "relu",  # Mish
-                "dim": 84,  # image size faster: 42
-            }
-        )
-        .resources(num_gpus=1)
-        .callbacks([TBXLoggerCallback(logdir="./logs")])
-    )
-
-    # Create the PPO trainer
-    algo = config.build()
-
-    return algo
-
-
-def train(algo, episodes: int = 10):
-    # Training loop
-    for i in range(episodes):
-        result = algo.train()
-        print(f"Iteration: {i}, reward: {result["env_runners"]["episode_return_mean"]}")
-
-        # Save the model every 10 iterations
-        if i % 10 == 0:
-            checkpoint = algo.save()
-            print(f"Checkpoint saved at {checkpoint}")
-
-    return algo
-
-
-def test(algo, episodes: int = 1) -> list:
+def test(model, episodes: int = 1, render: bool = False) -> list:
     # Create the environment
-    env = gym.make("ALE/Pong-v5", render_mode="human")
+    test_env = make_atari_env("ALE/Pong-v5", n_envs=1, seed=0)
+    test_env = VecFrameStack(test_env, n_stack=4)
+    delay = 1.0 / 24.0
 
-    # Run a few episodes
     episode_rewards = []
     for episode in range(episodes):
-        obs, info = env.reset()
-        episode_over = False
+        # obs shape (n_envs, 84, 84, n_frame_stacks)
+        obs = test_env.reset()
+        dones = False
         total_reward = 0
 
-        while not episode_over:
-            action = algo.compute_single_action(obs)
-            obs, reward, terminated, truncated, info = env.step(action)
+        while not dones:
+            action, _states = model.predict(obs, deterministic=False)
+            obs, reward, dones, info = test_env.step(action)
             total_reward += reward
-            episode_over = terminated or truncated
+            if render:
+                test_env.render("human")
+                sleep(delay)
 
         episode_rewards.append(total_reward)
         print(f"Episode {episode} reward: {total_reward}")
