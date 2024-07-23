@@ -1,7 +1,8 @@
+from typing import Type
 from stable_baselines3.common.atari_wrappers import WarpFrame
 from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.torch_layers import NatureCNN
+from stable_baselines3.common.torch_layers import NatureCNN, BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import VecFrameStack, DummyVecEnv, VecEnv
 from stable_baselines3 import PPO
 import gymnasium as gym
@@ -37,9 +38,13 @@ def setup_vec_env(
 
 def setup_model(
         vec_env: VecEnv,
+        model_class: Type[BaseFeaturesExtractor] = NatureCNN,
+        model_kwargs: dict = None,
         device: str = "auto",
         log_dir: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/logs/",
 ) -> PPO:
+    if model_kwargs is None:
+        model_kwargs = {"features_dim": 256}
     # Create the model
     model = PPO(
         "CnnPolicy",
@@ -62,8 +67,8 @@ def setup_model(
             net_arch={"pi": [64], "vf": [64]},
             activation_fn=torch.nn.Mish,
             ortho_init=True,
-            features_extractor_class=NatureCNN,
-            features_extractor_kwargs={"features_dim": 256},
+            features_extractor_class=model_class,
+            features_extractor_kwargs=model_kwargs,
             share_features_extractor=True,
             optimizer_class=torch.optim.Adam,
             optimizer_kwargs=None,
@@ -82,13 +87,15 @@ def initialize(
         action_repeat_probability: float = 0.0,
         frame_stacks: int = 4,
         seed: int = 0,
+        model_class: BaseFeaturesExtractor = NatureCNN,
+        model_kwargs: dict = None,
         device: str = "auto",
         log_dir: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/logs/",
 ) -> tuple:
     # Create the environment
     vec_env = setup_vec_env(n_envs, frame_skip, screen_size, action_repeat_probability, frame_stacks, seed)
     # Create the model
-    model = setup_model(vec_env, device, log_dir)
+    model = setup_model(vec_env, model_class, model_kwargs, device, log_dir)
     return model, vec_env
 
 
