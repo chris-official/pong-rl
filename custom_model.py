@@ -65,7 +65,9 @@ class SimpleCNN(BaseFeaturesExtractor):
 
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups=1, activation: Type[nn.Module] = nn.SiLU):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple] = 3,
+                 stride: Union[int, tuple] = 1, padding: Union[int, tuple] = None, groups: int = 1,
+                 activation: Type[nn.Module] = nn.Mish):
         super().__init__()
         self.conv_block = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=groups),
@@ -97,9 +99,11 @@ class SqueezeExcitation(nn.Module):
 
 
 class MBConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, ratio, reduction=2, activation: Type[nn.Module] = nn.SiLU):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple] = 3,
+                 stride: Union[int, tuple] = 1, padding: Union[int, tuple] = None, expand_ratio: int = 2,
+                 reduction: int = 2, activation: Type[nn.Module] = nn.Mish):
         super().__init__()
-        hidden_dim = in_channels * ratio
+        hidden_dim = in_channels * expand_ratio
         reduced_dim = in_channels // reduction
         self.expand = in_channels != hidden_dim
 
