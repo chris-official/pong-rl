@@ -69,6 +69,8 @@ class ConvBlock(nn.Module):
                  stride: Union[int, tuple] = 1, padding: Union[int, tuple] = None, groups: int = 1,
                  activation: Type[nn.Module] = nn.Mish):
         super().__init__()
+        if padding is None:
+            padding = (kernel_size - 1) // 2
         self.conv_block = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=groups),
             nn.BatchNorm2d(out_channels),
