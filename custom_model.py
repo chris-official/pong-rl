@@ -82,7 +82,7 @@ class ConvBlock(nn.Module):
 
 
 class SqueezeExcitation(nn.Module):
-    def __init__(self, in_channels, reduced_dim, activation=nn.SiLU):
+    def __init__(self, in_channels, reduced_dim, activation=nn.Mish):
         super().__init__()
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.conv_squeeze = nn.Conv2d(in_channels, reduced_dim, 1)
@@ -134,7 +134,7 @@ class EfficientNet(BaseFeaturesExtractor):
             features_dim: int = 512,
             hidden_dim: int = 32,
             normalized_image: bool = False,
-            activation: Type[nn.Module] = nn.SiLU,
+            activation: Type[nn.Module] = nn.Mish,
     ) -> None:
         assert isinstance(observation_space, spaces.Box), (
             f"This model must be used with a gym.spaces.Box observation space, not {observation_space}"
