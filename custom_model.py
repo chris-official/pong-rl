@@ -110,7 +110,7 @@ class MBConvBlock(nn.Module):
         self.expand = in_channels != hidden_dim
 
         if self.expand:
-            self.expand_conv = ConvBlock(in_channels, hidden_dim, 3, 1, "same", 1, activation)
+            self.expand_conv = ConvBlock(in_channels, hidden_dim, 3, 1, None, 1, activation)
 
         self.depthwise = ConvBlock(hidden_dim, hidden_dim, kernel_size, stride, padding, hidden_dim, activation)
         self.squeeze = SqueezeExcitation(hidden_dim, reduced_dim, activation)
@@ -145,18 +145,24 @@ class EfficientNet(BaseFeaturesExtractor):
         )
 
         input_channels = observation_space.shape[0]
+        initial_kernel = 5 if observation_space.shape[1] == 84 else 3
+        self.initial_conv = ConvBlock(input_channels, hidden_dim, initial_kernel, padding=0, activation=activation)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.flatten = nn.Flatten()
         self.extractor = nn.Sequential(
-            ConvBlock(input_channels, hidden_dim, 3, 1, 0, 1, activation),  # 4 x 42 x 42 -> 16 x 40 x 40
-            MBConvBlock(hidden_dim, hidden_dim * 2, 3, 1, 0, 2, 2, activation),  # 16 x 40 x 40 -> 32 x 38 x 38
-            MBConvBlock(hidden_dim * 2, hidden_dim * 4, 5, 2, 0, 2, 2, activation),  # 32 x 38 x 38 -> 64 x 17 x 17
-            MBConvBlock(hidden_dim * 4, hidden_dim * 8, 5, 2, 0, 1, 2, activation),  # 64 x 17 x 17 -> 128 x 7 x 7
-            ConvBlock(hidden_dim * 8, features_dim, 1, 1, 0, 1, activation),  # 128 x 7 x 7 -> 512 x 7 x 7
+            MBConvBlock(hidden_dim, hidden_dim * 2, 3, 1, None, 2, 2, activation),  # 16 x 40 x 40 -> 32 x 40 x 40
+            ConvBlock(hidden_dim * 2,  hidden_dim * 2, 5, 2, None, activation=activation),  # 32 x 40 x 40 -> 32 x 20 x 20
+            MBConvBlock(hidden_dim * 2, hidden_dim * 4, 5, 1, None, 2, 2, activation),  # 32 x 20 x 20 -> 64 x 20 x 20
+            ConvBlock(hidden_dim * 4, hidden_dim * 4, 5, 2, None, activation=activation),  # 64 x 20 x 20 -> 64 x 10 x 10
+            MBConvBlock(hidden_dim * 4, hidden_dim * 8, 5, 1, None, 2, 2, activation),  # 64 x 10 x 10 -> 128 x 10 x 10
+            ConvBlock(hidden_dim * 8, hidden_dim * 8, 5, 2, None, activation=activation),  # 128 x 10 x 10 -> 128 x 5 x 5
+            MBConvBlock(hidden_dim * 8, hidden_dim * 16, 3, 1, None, 2, 2, activation),  # 128 x 5 x 5 -> 256 x 5 x 5
+            ConvBlock(hidden_dim * 16, features_dim, 1, padding=0, activation=activation),  # 256 x 5 x 5 -> 512 x 5 x 5
         )
 
     def forward(self, x):
-        x = self.extractor(x)  # 4 x 42 x 42 -> 512 x 7 x 7
-        x = self.avgpool(x)  # 512 x 7 x 7 -> 512 x 1 x 1
+        x = self.initial_conv(x)  # 4 x 42 x 42 -> 16 x 40 x 40
+        x = self.extractor(x)  # 16 x 40 x 40 -> 512 x 5 x 5
+        x = self.avgpool(x)  # 512 x 5 x 5 -> 512 x 1 x 1
         x = self.flatten(x)  # 512 x 1 x 1 -> 512
         return x
