@@ -19,7 +19,7 @@ def setup_vec_env(
 ) -> VecEnv:
     # Create the environment
     vec_env = make_atari_env(
-        "ALE/Pong-v5",
+        "PongNoFrameskip-v4",
         n_envs=n_envs,
         seed=seed,
         wrapper_kwargs={
@@ -123,7 +123,7 @@ def evaluate(model: PPO, env: VecEnv, episodes: int = 1, deterministic: bool = T
 
 def visualize(model: PPO = None, screen_size: int = 84, episodes: int = 1) -> list:
     env = gym.make(
-        "ALE/Pong-v5",
+        "PongNoFrameskip-v4",
         difficulty=None,
         obs_type="rgb",
         frameskip=4,
