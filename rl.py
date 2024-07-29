@@ -72,6 +72,7 @@ def setup_model(
             share_features_extractor=True,
             optimizer_class=torch.optim.Adam,
             optimizer_kwargs=None,
+            normalize_images=True,
         ),
         verbose=0,
         seed=None,
