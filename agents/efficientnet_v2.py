@@ -327,7 +327,13 @@ class EfficientNet(BaseFeaturesExtractor):
             raise TypeError("The inverted_residual_setting should be List[MBConvConfig]")
 
         n_input_channels = observation_space.shape[0]
+        image_size = observation_space.shape[1:]
         layers: List[nn.Module] = []
+
+        # Parameter free image size reduction to 40x40
+        if image_size == (160, 160):
+            layers.append(nn.MaxPool2d(kernel_size=(4, 2), stride=(4, 2)))
+            layers.append(nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2)))
 
         # building first layer
         firstconv_output_channels = inverted_residual_setting[0].input_channels

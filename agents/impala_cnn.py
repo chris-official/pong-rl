@@ -61,10 +61,16 @@ class ImpalaCNN(BaseFeaturesExtractor):
         assert len(depths) > 0, "depths must be a non-empty list"
 
         n_input_channels = observation_space.shape[0]
+        image_size = observation_space.shape[1:]
         if depths is None:
             depths = [16, 32, 32]
 
         layers = []
+        # Parameter free image size reduction to 40x40
+        if image_size == (160, 160):
+            layers.append(nn.MaxPool2d(kernel_size=(4, 2), stride=(4, 2)))
+            layers.append(nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2)))
+
         for i, depth in enumerate(depths):
             if i == 0:
                 layers.append(ConvSequence(n_input_channels, depth, activation))
