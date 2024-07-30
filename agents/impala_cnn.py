@@ -9,12 +9,12 @@ from stable_baselines3.common.preprocessing import is_image_space
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_channels: int, activation: Type[nn.Module]):
+    def __init__(self, in_channels: int, activation_layer: Type[nn.Module]):
         super().__init__()
         self.block = nn.Sequential(
-            activation(),
+            activation_layer(),
             nn.Conv2d(in_channels, in_channels, 3, padding=1),
-            activation(),
+            activation_layer(),
             nn.Conv2d(in_channels, in_channels, 3, padding=1),
         )
 
@@ -24,13 +24,13 @@ class ResBlock(nn.Module):
 
 
 class ConvSequence(nn.Module):
-    def __init__(self, in_channels: int, depth: int, activation: Type[nn.Module]):
+    def __init__(self, in_channels: int, depth: int, activation_layer: Type[nn.Module]):
         super().__init__()
         self.sequence = nn.Sequential(
             nn.Conv2d(in_channels, depth, 3, padding=1),
             nn.MaxPool2d(3, stride=2, padding=1),
-            ResBlock(depth, activation),
-            ResBlock(depth, activation),
+            ResBlock(depth, activation_layer),
+            ResBlock(depth, activation_layer),
         )
 
     def forward(self, x):
@@ -47,9 +47,9 @@ class ImpalaCNN(BaseFeaturesExtractor):
             self,
             observation_space: gym.Space,
             features_dim: int = 512,
-            normalized_image: bool = False,
             depths: list[int] = None,
-            activation: Type[nn.Module] = nn.ReLU,
+            activation_layer: Type[nn.Module] = nn.ReLU,
+            normalized_image: bool = False,
     ) -> None:
         assert isinstance(observation_space, spaces.Box), (
             f"This model must be used with a gym.spaces.Box observation space, not {observation_space}"
@@ -73,13 +73,13 @@ class ImpalaCNN(BaseFeaturesExtractor):
 
         for i, depth in enumerate(depths):
             if i == 0:
-                layers.append(ConvSequence(n_input_channels, depth, activation))
+                layers.append(ConvSequence(n_input_channels, depth, activation_layer))
             else:
-                layers.append(ConvSequence(depths[i - 1], depth, activation))
+                layers.append(ConvSequence(depths[i - 1], depth, activation_layer))
 
         self.extractor = nn.Sequential(*layers)
         self.flatten = nn.Flatten()
-        self.activation = activation()
+        self.activation = activation_layer()
 
         # Compute shape by doing one forward pass
         with th.no_grad():
