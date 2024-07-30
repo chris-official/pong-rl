@@ -1,9 +1,9 @@
 from typing import Type
 from stable_baselines3.common.atari_wrappers import WarpFrame
-from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.torch_layers import NatureCNN, BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import VecFrameStack, DummyVecEnv, VecEnv
+from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3 import PPO
 import gymnasium as gym
 import torch
@@ -81,27 +81,25 @@ def setup_model(
     return model
 
 
-def initialize(
-        n_envs: int = 1,
-        frame_skip: int = 4,
-        screen_size: int = 84,
-        action_repeat_probability: float = 0.0,
-        frame_stacks: int = 4,
-        seed: int = 0,
-        model_class: BaseFeaturesExtractor = NatureCNN,
-        model_kwargs: dict = None,
-        device: str = "auto",
-        log_dir: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/logs/",
-) -> tuple:
-    # Create the environment
-    vec_env = setup_vec_env(n_envs, frame_skip, screen_size, action_repeat_probability, frame_stacks, seed)
-    # Create the model
-    model = setup_model(vec_env, model_class, model_kwargs, device, log_dir)
-    return model, vec_env
+def setup_callback(eval_env: VecEnv, n_envs: int = 8, eval_freq: int = 100_000, n_eval_episodes: int = 3) -> EvalCallback:
+    callback = EvalCallback(
+        eval_env=eval_env,
+        callback_on_new_best=None,
+        callback_after_eval=None,
+        n_eval_episodes=n_eval_episodes,
+        eval_freq=max(eval_freq // n_envs, 1),
+        log_path="C:/Users/cgoet/PycharmProjects/Pong-RL/evaluations/",
+        best_model_save_path="C:/Users/cgoet/PycharmProjects/Pong-RL/models/",
+        deterministic=True,
+        render=False,
+        verbose=1,
+        warn=False,
+    )
+    return callback
 
 
-def train(model: PPO, steps: int = 1000, name: str = "pong_ppo", new_run: bool = True) -> PPO:
-    model.learn(total_timesteps=steps, tb_log_name=name, reset_num_timesteps=new_run, callback=None)
+def train(model: PPO, steps: int = 1000, name: str = "pong_ppo", new_run: bool = True, callbacks: list = None) -> PPO:
+    model.learn(total_timesteps=steps, tb_log_name=name, reset_num_timesteps=new_run, callback=callbacks)
     return model
 
 
