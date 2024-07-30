@@ -7,7 +7,7 @@ def print_policy(model) -> None:
     print(model.policy)
 
 
-def print_model_parameters(model, print_layers: bool = False) -> None:
+def print_model_parameters(model, print_layers: bool = False, shared_extractor: bool = True) -> None:
     modules = model.policy._modules.keys()
 
     total_params = 0
@@ -17,7 +17,12 @@ def print_model_parameters(model, print_layers: bool = False) -> None:
             if param.requires_grad:
                 count = param.numel()
                 module_params += count
-                total_params += count
+                if shared_extractor:
+                    if module not in ["pi_features_extractor", "vf_features_extractor"]:
+                        total_params += count
+                else:
+                    if module != "features_extractor":
+                        total_params += count
                 if print_layers:
                     print(f"    {name}: {count:,}")
         print(f"{module}: {module_params:,}")
