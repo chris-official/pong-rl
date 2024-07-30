@@ -7,27 +7,24 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3 import PPO
 import gymnasium as gym
 import torch
+from wrapper import make_custom_atari_env
 
 
 def setup_vec_env(
         n_envs: int = 1,
         frame_skip: int = 4,
-        screen_size: int = 84,
         action_repeat_probability: float = 0.0,
         frame_stacks: int = 4,
         seed: int = 0,
 ) -> VecEnv:
     # Create the environment
-    vec_env = make_atari_env(
+    vec_env = make_custom_atari_env(
         "PongNoFrameskip-v4",
         n_envs=n_envs,
         seed=seed,
         wrapper_kwargs={
             "noop_max": 30,
             "frame_skip": frame_skip,
-            "screen_size": screen_size,
-            "terminal_on_life_loss": True,
-            "clip_reward": True,
             "action_repeat_probability": action_repeat_probability,
         },
     )
