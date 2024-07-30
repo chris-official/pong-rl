@@ -37,31 +37,34 @@ def setup_model(
         vec_env: VecEnv,
         model_class: Type[BaseFeaturesExtractor] = NatureCNN,
         model_kwargs: dict = None,
+        net_arch: dict = None,
         device: str = "auto",
         log_dir: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/logs/",
 ) -> PPO:
     if model_kwargs is None:
         model_kwargs = {"features_dim": 256}
+    if net_arch is None:
+        net_arch = {"pi": [64], "vf": [64]}
     # Create the model
     model = PPO(
         "CnnPolicy",
         vec_env,
-        learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=64,
-        n_epochs=10,
+        learning_rate=5e-4,
+        n_steps=256,
+        batch_size=128,
+        n_epochs=4,
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
         clip_range_vf=None,
         normalize_advantage=True,
-        ent_coef=0.0,
+        ent_coef=0.01,
         vf_coef=0.5,
         max_grad_norm=0.5,
         stats_window_size=100,
         tensorboard_log=log_dir,
         policy_kwargs=dict(
-            net_arch={"pi": [64], "vf": [64]},
+            net_arch=net_arch,
             activation_fn=torch.nn.Mish,
             ortho_init=True,
             features_extractor_class=model_class,
