@@ -14,8 +14,9 @@ def setup_vec_env(
         n_envs: int = 1,
         frame_skip: int = 4,
         action_repeat_probability: float = 0.0,
+        monitor_log_path: str = None,
         frame_stacks: int = 4,
-        seed: int = 0,
+        seed: int = None,
 ) -> VecEnv:
     # Create the environment
     vec_env = make_custom_atari_env(
@@ -26,6 +27,7 @@ def setup_vec_env(
             "noop_max": 30,
             "frame_skip": frame_skip,
             "action_repeat_probability": action_repeat_probability,
+            "monitor_log_path": monitor_log_path,
         },
     )
     # Stack multiple frames
@@ -39,7 +41,7 @@ def setup_model(
         model_kwargs: dict = None,
         net_arch: dict = None,
         device: str = "auto",
-        log_dir: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/logs/",
+        log_dir: str = None,
 ) -> PPO:
     if model_kwargs is None:
         model_kwargs = {"features_dim": 256}
@@ -81,19 +83,20 @@ def setup_model(
     return model
 
 
-def setup_callback(eval_env: VecEnv, n_envs: int = 8, eval_freq: int = 100_000, n_eval_episodes: int = 3) -> EvalCallback:
+def setup_callback(eval_env: VecEnv, n_envs: int = 8, eval_freq: int = 100_000, n_eval_episodes: int = 3,
+                   log_path: str = None, best_model_save_path: str = None) -> EvalCallback:
     callback = EvalCallback(
         eval_env=eval_env,
         callback_on_new_best=None,
         callback_after_eval=None,
         n_eval_episodes=n_eval_episodes,
         eval_freq=max(eval_freq // n_envs, 1),
-        log_path="C:/Users/cgoet/PycharmProjects/Pong-RL/evaluations/",
-        best_model_save_path="C:/Users/cgoet/PycharmProjects/Pong-RL/models/",
+        log_path=log_path,
+        best_model_save_path=best_model_save_path,
         deterministic=True,
         render=False,
         verbose=1,
-        warn=False,
+        warn=True,
     )
     return callback
 
@@ -103,11 +106,11 @@ def train(model: PPO, steps: int = 1000, name: str = "pong_ppo", new_run: bool =
     return model
 
 
-def save(model: PPO, path: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/models/pong_ppo") -> None:
+def save(model: PPO, path: str) -> None:
     model.save(path)
 
 
-def load(path: str = "C:/Users/cgoet/PycharmProjects/Pong-RL/models/pong_ppo", vec_env=None) -> PPO:
+def load(path: str, vec_env: VecEnv = None) -> PPO:
     model = PPO.load(path)
     if vec_env:
         model.set_env(vec_env)
