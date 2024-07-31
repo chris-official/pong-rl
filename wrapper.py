@@ -4,6 +4,7 @@ from gymnasium import spaces
 from typing import Any, Callable, Dict, Optional, Type, Union
 
 import stable_baselines3.common.atari_wrappers as sb3_wrapper
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 
@@ -78,7 +79,9 @@ class CustomAtariWrapper(gym.Wrapper[np.ndarray, int, np.ndarray, int]):
         noop_max: int = 30,
         frame_skip: int = 4,
         action_repeat_probability: float = 0.0,
+        monitor_log_path: Optional[str] = None,
     ) -> None:
+        env = Monitor(env, monitor_log_path)
         if action_repeat_probability > 0.0:
             env = sb3_wrapper.StickyActionEnv(env, action_repeat_probability)
         if noop_max > 0:
