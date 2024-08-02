@@ -123,35 +123,32 @@ def evaluate(model: PPO, env: VecEnv, episodes: int = 1, deterministic: bool = T
     return mean_reward, std_reward
 
 
-def visualize(model: PPO = None, screen_size: int = 84, episodes: int = 1) -> list:
-    env = gym.make(
-        "PongNoFrameskip-v4",
-        difficulty=None,
-        obs_type="rgb",
-        frameskip=4,
-        repeat_action_probability=0.,
-        render_mode="human",
+def visualize(model: PPO | DQN, n_envs: int = 1, episodes: int = 1, delay: float = 0.0, deterministic: bool = True) -> list:
+    env = setup_vec_env(
+        n_envs=n_envs,
+        frame_skip=4,
+        action_repeat_probability=0.0,
+        monitor_log_path=None,
+        frame_stacks=4,
+        seed=None,
     )
-    input_env = WarpFrame(env, width=screen_size, height=screen_size)
-    input_env = DummyVecEnv([lambda: input_env])
-    input_env = VecFrameStack(input_env, n_stack=4)
 
     episode_rewards = []
     for episode in range(episodes):
-        obs = input_env.reset()
-        dones = False
-        total_reward = 0
+        obs = env.reset()
+        dones = np.zeros(n_envs, dtype=bool)
+        total_reward = np.zeros(n_envs, dtype=np.float32)
 
-        while not dones:
-            if model:
-                action, _ = model.predict(obs, deterministic=False)
-            else:
-                action = [input_env.action_space.sample()]
-            obs, reward, dones, info = input_env.step(action)
-            total_reward += reward[0]
+        while not dones.any():
+            action, _states = model.predict(obs, deterministic=deterministic)
+            obs, reward, dones, info = env.step(action)
+            total_reward += reward
+            env.render("human")
+            sleep(delay)
 
-        episode_rewards.append(total_reward)
-        print(f"Episode {episode} reward: {total_reward}")
+        mean_reward = total_reward.mean()
+        episode_rewards.append(mean_reward)
+        print(f"Episode {episode} mean reward: {mean_reward}")
 
     print(f"Average reward: {sum(episode_rewards) / len(episode_rewards)}")
 
