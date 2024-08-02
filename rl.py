@@ -1,12 +1,12 @@
-from typing import Type
-from stable_baselines3.common.atari_wrappers import WarpFrame
+from typing import Type, Literal
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.torch_layers import NatureCNN, BaseFeaturesExtractor
-from stable_baselines3.common.vec_env import VecFrameStack, DummyVecEnv, VecEnv
+from stable_baselines3.common.vec_env import VecFrameStack, VecEnv
 from stable_baselines3.common.callbacks import EvalCallback
-from stable_baselines3 import PPO
-import gymnasium as gym
+from stable_baselines3 import PPO, DQN
+from time import sleep
 import torch
+import numpy as np
 from wrapper import make_custom_atari_env
 
 
@@ -37,49 +37,84 @@ def setup_vec_env(
 
 def setup_model(
         vec_env: VecEnv,
+        algorithm: Literal["ppo", "dqn"] = "ppo",
         model_class: Type[BaseFeaturesExtractor] = NatureCNN,
         model_kwargs: dict = None,
-        net_arch: dict = None,
+        net_arch: dict | list = None,
         device: str = "auto",
         log_dir: str = None,
-) -> PPO:
+) -> PPO | DQN:
     if model_kwargs is None:
-        model_kwargs = {"features_dim": 256}
+        model_kwargs = {"features_dim": 512}
     if net_arch is None:
-        net_arch = {"pi": [64], "vf": [64]}
+        if algorithm.lower() == "ppo":
+            net_arch = {"pi": [128], "vf": [128]}
+        else:
+            net_arch = [128, 64]
     # Create the model
-    model = PPO(
-        "CnnPolicy",
-        vec_env,
-        learning_rate=3e-4,
-        n_steps=256,
-        batch_size=128,
-        n_epochs=4,
-        gamma=0.99,
-        gae_lambda=0.95,
-        clip_range=0.2,
-        clip_range_vf=None,
-        normalize_advantage=True,
-        ent_coef=0.03,
-        vf_coef=0.5,
-        max_grad_norm=0.5,
-        stats_window_size=100,
-        tensorboard_log=log_dir,
-        policy_kwargs=dict(
-            net_arch=net_arch,
-            activation_fn=torch.nn.Mish,
-            ortho_init=True,
-            features_extractor_class=model_class,
-            features_extractor_kwargs=model_kwargs,
-            share_features_extractor=True,
-            optimizer_class=torch.optim.AdamW,
-            optimizer_kwargs=dict(weight_decay=1e-4),
-            normalize_images=True,
-        ),
-        verbose=0,
-        seed=None,
-        device=device,
-    )
+    if algorithm.lower() == "ppo":
+        model = PPO(
+            "CnnPolicy",
+            vec_env,
+            learning_rate=3e-4,
+            n_steps=256,
+            batch_size=128,
+            n_epochs=4,
+            gamma=0.99,
+            gae_lambda=0.95,
+            clip_range=0.2,
+            clip_range_vf=None,
+            normalize_advantage=True,
+            ent_coef=0.03,
+            vf_coef=0.5,
+            max_grad_norm=0.5,
+            stats_window_size=100,
+            tensorboard_log=log_dir,
+            policy_kwargs=dict(
+                net_arch=net_arch,
+                activation_fn=torch.nn.Mish,
+                ortho_init=True,
+                features_extractor_class=model_class,
+                features_extractor_kwargs=model_kwargs,
+                share_features_extractor=True,
+                optimizer_class=torch.optim.AdamW,
+                optimizer_kwargs=dict(weight_decay=1e-4),
+                normalize_images=True,
+            ),
+            device=device,
+        )
+    elif algorithm.lower() == "dqn":
+        model = DQN(
+            "CnnPolicy",
+            vec_env,
+            learning_rate=3e-4,
+            buffer_size=50_000,
+            learning_starts=1_000,
+            batch_size=128,
+            tau=1.0,
+            gamma=0.99,
+            train_freq=4,
+            gradient_steps=1,
+            target_update_interval=1_000,
+            exploration_fraction=0.1,
+            exploration_initial_eps=1.0,
+            exploration_final_eps=0.05,
+            max_grad_norm=10,
+            stats_window_size=100,
+            tensorboard_log=log_dir,
+            policy_kwargs=dict(
+                net_arch=net_arch,
+                activation_fn=torch.nn.Mish,
+                features_extractor_class=model_class,
+                features_extractor_kwargs=model_kwargs,
+                optimizer_class=torch.optim.AdamW,
+                optimizer_kwargs=dict(weight_decay=1e-4),
+                normalize_images=True,
+            ),
+            device=device,
+        )
+    else:
+        raise ValueError(f"Unknown algorithm: {algorithm}. Supported algorithms are: 'ppo', 'dqn'")
     return model
 
 
@@ -101,23 +136,30 @@ def setup_callback(eval_env: VecEnv, n_envs: int = 8, eval_freq: int = 100_000, 
     return callback
 
 
-def train(model: PPO, steps: int = 1000, name: str = "pong_ppo", new_run: bool = True, callbacks: list = None) -> PPO:
+def train(model: PPO | DQN, steps: int = 1000, name: str = "pong_model", new_run: bool = True, callbacks: list = None) -> PPO | DQN:
     model.learn(total_timesteps=steps, tb_log_name=name, reset_num_timesteps=new_run, callback=callbacks)
     return model
 
 
-def save(model: PPO, path: str) -> None:
+def save(model: PPO | DQN, path: str) -> None:
     model.save(path)
 
 
-def load(path: str, vec_env: VecEnv = None) -> PPO:
-    model = PPO.load(path)
+def load(algorithm: Literal["ppo", "dqn"], path: str, vec_env: VecEnv = None) -> PPO | DQN:
+    if algorithm.lower() == "ppo":
+        model = PPO.load(path)
+    elif algorithm.lower() == "dqn":
+        model = DQN.load(path)
+    else:
+        raise ValueError(f"Unknown algorithm: {algorithm}. Supported algorithms are: 'ppo', 'dqn'")
     if vec_env:
         model.set_env(vec_env)
     return model
 
 
-def evaluate(model: PPO, env: VecEnv, episodes: int = 1, deterministic: bool = True) -> tuple:
+def evaluate(model: PPO | DQN, env: VecEnv = None, episodes: int = 1, deterministic: bool = True) -> tuple:
+    if env is None:
+        env = model.get_env()
     mean_reward, std_reward = evaluate_policy(model, env, episodes, deterministic)
     print(f"Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
     return mean_reward, std_reward
