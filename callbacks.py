@@ -1,4 +1,5 @@
 import os
+import optuna
 import numpy as np
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.callbacks import BaseCallback
@@ -47,5 +48,27 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
                     if self.verbose > 0:
                         print(f"Saving new best model to {self.save_path}")
                     self.model.save(self.save_path)
+
+        return True
+
+
+class PruningCallback(BaseCallback):
+    def __init__(self, trial: optuna.trial.Trial, check_freq: int = 10_000, verbose: int = 1):
+        super().__init__(verbose)
+        self.trial = trial
+        self.check_freq = check_freq
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.check_freq == 0:
+            ep_rwd = [ep_info["r"] for ep_info in self.model.ep_info_buffer]
+            if len(ep_rwd) > 0:
+                ep_rew_mean = np.mean(ep_rwd)
+            else:
+                ep_rew_mean = -21.0
+            self.trial.report(ep_rew_mean, step=self.num_timesteps)
+            if self.trial.should_prune():
+                if self.verbose > 0:
+                    print(f"Trial {self.trial.number} was pruned at step: {self.num_timesteps}")
+                raise optuna.TrialPruned()
 
         return True
