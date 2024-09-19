@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import wandb
 import lightning as L
 import gymnasium as gym
 from dataset import PongDataset
@@ -7,6 +8,7 @@ from torch.utils.data import DataLoader
 from stable_baselines3.common.torch_layers import NatureCNN
 from wandb.integration.lightning.fabric import WandbLogger
 from lightning.fabric.loggers import CSVLogger, TensorBoardLogger
+from datasets.atari import AtariPongDataset
 
 
 class SaveBestModel:
@@ -103,7 +105,6 @@ def main():
     features_dim = 512
 
     # Setup logger
-    csv_logger = CSVLogger(root_dir=log_dir, name=name)
     tb_logger = TensorBoardLogger(root_dir=log_dir, name=name)
     wandb_logger = WandbLogger(save_dir=log_dir, name=name, project="Pong-RL", entity="iu-projects")
 
@@ -129,19 +130,24 @@ def main():
         accelerator=accelerator,
         precision=precision,
         callbacks=[save_best_model],
-        loggers=[csv_logger, tb_logger, wandb_logger]
+        loggers=[tb_logger, wandb_logger]
     )
 
     # Set seed
     fabric.seed_everything(seed)
 
     # Instantiate objects
-    obs_space = gym.spaces.Box(low=0, high=1, shape=(framestack, 80, 80), dtype=np.float32)
+    obs_space = gym.spaces.Box(low=0, high=1, shape=(framestack, 84, 84), dtype=np.float32)
     with fabric.init_module():
         model = PolicyNetwork(obs_space, features_dim=features_dim, normalized_image=True, out_classes=6)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    dataset = PongDataset(dataset_length=dataset_length, framestack=framestack, epsilon=epsilon, seed=seed)
+
+    # Create dataloader
+    dataset = AtariPongDataset(dataset_length=dataset_length, epsilon=epsilon, seed=seed, mode="proba")
     dataloader = DataLoader(dataset, batch_size=batch_size)
+
+    # Set float32 matmul precision to utilize tensor cores
+    torch.set_float32_matmul_precision("high")
 
     # Set up objects
     model, optimizer = fabric.setup(model, optimizer)
@@ -149,6 +155,8 @@ def main():
 
     # Run training loop
     train(fabric, model, optimizer, dataloader, num_epochs, log_interval)
+
+    wandb.finish()
 
 
 if __name__ == "__main__":
