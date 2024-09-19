@@ -22,9 +22,9 @@ class SaveBestModel:
                 {"model": model, "optimizer": optimizer, "step": step}
             )
 
-    def on_train_end(self, fabric, model, optimizer, step):
+    def on_train_end(self, fabric, loss, model, optimizer, step):
         fabric.save(
-            self.path + f"/final_checkpoint_step={step}.ckpt",
+            self.path + f"/final_checkpoint_step={step}_loss={loss:.4f}.ckpt",
             {"model": model, "optimizer": optimizer, "step": step}
         )
 
@@ -82,7 +82,7 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
         fabric.print(f"Epoch {epoch + 1}/{num_epochs} completed.")
 
     # save final model
-    fabric.call("on_train_end", fabric=fabric, model=model, optimizer=optimizer, step=step)
+    fabric.call("on_train_end", fabric=fabric, loss=mean_loss, model=model, optimizer=optimizer, step=step)
 
 
 def main():
