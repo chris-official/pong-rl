@@ -49,6 +49,8 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
     model.train()
     step = 0
     running_loss = 0.
+    running_kl_loss = 0.
+    mean_loss = 0.
     for epoch in range(num_epochs):
         for i, batch in enumerate(dataloader):
             step += 1
@@ -56,18 +58,28 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
             optimizer.zero_grad()
             logits = model(inputs)
             loss = torch.nn.functional.cross_entropy(logits, target)
+            kl_loss = torch.nn.functional.kl_div(torch.nn.functional.log_softmax(logits, dim=1), target, reduction="batchmean")
             fabric.backward(loss)
             optimizer.step()
 
             # Log metrics
             running_loss += loss.item()
+            running_kl_loss += kl_loss.item()
             if step % log_interval == 0:
                 mean_loss = running_loss / log_interval
-                fabric.log("loss", mean_loss, step)
+                mean_kl_loss = running_kl_loss / log_interval
+                fabric.log_dict(
+                    {
+                        "loss": mean_loss,
+                        "kl_loss": mean_kl_loss,
+                        "accuracy": (logits.argmax(dim=1) == target.argmax(1)).float().mean().item()
+                    },
+                    step
+                )
                 running_loss = 0.
+                running_kl_loss = 0.
 
-        # save best model
-        # fabric.call("on_train_epoch_end", fabric=fabric, loss=loss.item(), model=model, optimizer=optimizer, step=step)
+        fabric.print(f"Epoch {epoch + 1}/{num_epochs} completed.")
 
     # save final model
     fabric.call("on_train_end", fabric=fabric, model=model, optimizer=optimizer, step=step)
