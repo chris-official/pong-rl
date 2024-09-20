@@ -49,7 +49,7 @@ class PolicyNetwork(NatureCNN):
         return self.action_net(x)
 
 
-def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
+def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10, num_classes=6, label_smoothing=0.):
     model.train()
     step = 0
     # initialize metrics
@@ -72,8 +72,8 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
             optimizer.zero_grad()
             # forward pass
             logits = model(inputs)
-            loss = torch.nn.functional.cross_entropy(logits, target)
             # compute loss
+            loss = torch.nn.functional.cross_entropy(logits, target, label_smoothing=label_smoothing)
             kl_loss = torch.nn.functional.kl_div(torch.nn.functional.log_softmax(logits, dim=1), target, reduction="batchmean")
             # backpropagation
             fabric.backward(loss)
