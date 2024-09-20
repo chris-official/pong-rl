@@ -9,6 +9,8 @@ from stable_baselines3.common.torch_layers import NatureCNN
 from wandb.integration.lightning.fabric import WandbLogger
 from lightning.fabric.loggers import CSVLogger, TensorBoardLogger
 from datasets.atari import AtariPongDataset
+from torchmetrics import MetricCollection
+from torchmetrics.classification import MulticlassAccuracy, MulticlassPrecision, MulticlassAUROC
 
 
 class SaveBestModel:
@@ -53,6 +55,12 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
     running_loss = 0.
     running_kl_loss = 0.
     mean_loss = 0.
+    metric_collection = MetricCollection({
+        "accuracy": MulticlassAccuracy(num_classes=num_classes),
+        "precision": MulticlassPrecision(num_classes=num_classes),
+        "auroc": MulticlassAUROC(num_classes=num_classes),
+    }).to(fabric.device)
+    # training loop
     for epoch in range(num_epochs):
         for i, batch in enumerate(dataloader):
             step += 1
@@ -67,19 +75,19 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
             # Log metrics
             running_loss += loss.item()
             running_kl_loss += kl_loss.item()
+            metric_collection.update(logits, target.argmax(1))
             if step % log_interval == 0:
                 mean_loss = running_loss / log_interval
                 mean_kl_loss = running_kl_loss / log_interval
-                fabric.log_dict(
-                    {
-                        "loss": mean_loss,
-                        "kl_loss": mean_kl_loss,
-                        "accuracy": (logits.argmax(dim=1) == target.argmax(1)).float().mean().item()
-                    },
-                    step
-                )
+                metrics = {"loss": mean_loss, "kl_loss": mean_kl_loss}
+                # compute additional metrics
+                metrics.update(metric_collection.compute())
+                # log metrics
+                fabric.log_dict(metrics, step)
+                # reset metrics
                 running_loss = 0.
                 running_kl_loss = 0.
+                metric_collection.reset()
 
         fabric.print(f"Epoch {epoch + 1}/{num_epochs} completed.")
 
