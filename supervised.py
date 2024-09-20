@@ -52,6 +52,7 @@ class PolicyNetwork(NatureCNN):
 def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
     model.train()
     step = 0
+    # initialize metrics
     running_loss = 0.
     running_kl_loss = 0.
     mean_loss = 0.
@@ -63,20 +64,27 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10):
     # training loop
     for epoch in range(num_epochs):
         for i, batch in enumerate(dataloader):
+            # increment step
             step += 1
+            # split batch
             inputs, target = batch
+            # zero gradients
             optimizer.zero_grad()
+            # forward pass
             logits = model(inputs)
             loss = torch.nn.functional.cross_entropy(logits, target)
+            # compute loss
             kl_loss = torch.nn.functional.kl_div(torch.nn.functional.log_softmax(logits, dim=1), target, reduction="batchmean")
+            # backpropagation
             fabric.backward(loss)
             optimizer.step()
 
-            # Log metrics
+            # update metrics
             running_loss += loss.item()
             running_kl_loss += kl_loss.item()
             metric_collection.update(logits, target.argmax(1))
             if step % log_interval == 0:
+                # compute mean loss
                 mean_loss = running_loss / log_interval
                 mean_kl_loss = running_kl_loss / log_interval
                 metrics = {"loss": mean_loss, "kl_loss": mean_kl_loss}
