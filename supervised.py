@@ -59,7 +59,6 @@ def train(fabric, model, optimizer, scheduler, dataloader, num_epochs=1, log_int
     metric_collection = MetricCollection({
         "accuracy": MulticlassAccuracy(num_classes=num_classes),
         "precision": MulticlassPrecision(num_classes=num_classes),
-        "auroc": MulticlassAUROC(num_classes=num_classes),
     }).to(fabric.device)
     # training loop
     for epoch in range(num_epochs):
