@@ -49,7 +49,7 @@ class PolicyNetwork(NatureCNN):
         return self.action_net(x)
 
 
-def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10, num_classes=6, label_smoothing=0.):
+def train(fabric, model, optimizer, scheduler, dataloader, num_epochs=1, log_interval=10, num_classes=6, label_smoothing=0.):
     model.train()
     step = 0
     # initialize metrics
@@ -78,6 +78,8 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10, n
             # backpropagation
             fabric.backward(loss)
             optimizer.step()
+            # Update the learning rate
+            scheduler.step()
 
             # update metrics
             running_loss += loss.item()
@@ -90,6 +92,8 @@ def train(fabric, model, optimizer, dataloader, num_epochs=1, log_interval=10, n
                 metrics = {"loss": mean_loss, "kl_loss": mean_kl_loss}
                 # compute additional metrics
                 metrics.update(metric_collection.compute())
+                # log learning rate
+                metrics["learning_rate"] = optimizer.param_groups[0]["lr"]
                 # log metrics
                 fabric.log_dict(metrics, step)
                 # reset metrics
