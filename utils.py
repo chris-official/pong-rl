@@ -1,13 +1,10 @@
-import gymnasium as gym
-import cv2
-import matplotlib.pyplot as plt
+from stable_baselines3 import PPO
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import VecEnv
 
 
-def print_policy(model) -> None:
-    print(model.policy)
-
-
-def print_model_parameters(model, print_layers: bool = False, shared_extractor: bool = True) -> None:
+def print_model_parameters(model: PPO, print_layers: bool = False, shared_extractor: bool = True) -> None:
+    """Print the number of parameters of a Stable-Baselines3 model."""
     modules = model.policy._modules.keys()
 
     total_params = 0
@@ -29,18 +26,9 @@ def print_model_parameters(model, print_layers: bool = False, shared_extractor: 
     print(f"Total number of parameters: {total_params:,}")
 
 
-def plot_processing(screen_size: int = 84) -> None:
-    env = gym.make("ALE/Pong-v5", obs_type="rgb", render_mode=None)
-
-    obs, _ = env.reset()
-    for _ in range(100):
-        action = env.action_space.sample()
-        obs, _, _, _, _ = env.step(action)
-
-    plt.imshow(obs)
-    plt.show()
-
-    frame = cv2.resize(obs, (screen_size, screen_size), interpolation=cv2.INTER_AREA)
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    plt.imshow(frame, cmap="gray")
-    plt.show()
+def evaluate(model: PPO, env: VecEnv = None, episodes: int = 1, deterministic: bool = False) -> tuple:
+    if env is None:
+        env = model.get_env()
+    mean_reward, std_reward = evaluate_policy(model, env, episodes, deterministic)
+    print(f"Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
+    return mean_reward, std_reward
