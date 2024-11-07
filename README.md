@@ -16,14 +16,14 @@
 
 ## Description
 
-This repsoitory contains the code used to train a reinforcement learning agent to play the game of Pong. The agent is
+This repository contains the code used to train a reinforcement learning agent to play the game of Pong. The agent is
 trained using a hybrid learning approach, combining supervised learning and reinforcement learning. The agent is based 
 on a convolutional neural network and is finetuned using the Proximal Policy Optimization (PPO) algorithm. The code is
 uses the PyTorch Lightning Fabric, Stable_Baselines3, Gymnasium, and the Arcade Learning Environment (ALE) libraries.
 
 The code is structured as follows:
 * `assets/`: Contains the images and gifs used in this README.
-* `logs/`: Contains the logs for the training process.
+* `logs/`: Contains the TensorBoard logs for all experiments.
 * `models/`: Contains the weights for the trained models.
 * `experiments.ipynb`: The main notebook containing the experiments.
 * `extras.ipynb`: The code for some additional visualizations.
@@ -63,14 +63,6 @@ points. Since the paddle is not controlled by a neural network, the predicted ac
 using the finetuned model. As expected, the state values are fluctuating dramatically without the showing signs
 of the dominant cyclical pattern observed in the finetuned agent.
 
-
-## Installation
-
-To install the required libraries, run the following command:
-
-```bash
-pip install -r requirements.txt
-```
 
 ## License
 
