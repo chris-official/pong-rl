@@ -6,9 +6,9 @@
     <br/>
     <br/>
     <div>
-        <img src="assets/random_model_playing.gif" alt="Random Agent" width="320">
-        <img src="assets/pretrained_model_playing.gif" alt="Pre-Trained Agent" width="320">
-        <img src="assets/finetuned_model_playing.gif" alt="Finetuned Agent" width="320">
+        <img src="assets/random_model_playing.gif" alt="Random Agent" width="160">
+        <img src="assets/pretrained_model_playing.gif" alt="Pre-Trained Agent" width="160">
+        <img src="assets/finetuned_model_playing.gif" alt="Finetuned Agent" width="160">
         <p>A random, pre-trained, and finetuned agent playing Pong from left to right, respectively.</p>
     </div>
 </div>
